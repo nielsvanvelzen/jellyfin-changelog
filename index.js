@@ -39,7 +39,7 @@ async function getPreviousReleasePullRequests(repository, tag) {
 	console.log(`getPreviousReleasePullRequests ${repository}:${tag}`);
 	const [owner, repo] = repository.split('/');
 	const res = await octokit.repos.getReleaseByTag({ owner, repo, tag });
-	const matches = res.data.body.matchAll(/\s+#(\d{1,5})[^\d]/g);
+	const matches = res.data.body.matchAll(/\s+#(\d{1,5}),/g);
 	
 	return [...matches].map(match => parseInt(match[1])).filter(n => !isNaN(n));
 }

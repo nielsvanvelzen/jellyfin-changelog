@@ -10,6 +10,10 @@
 		"v2.3.0-beta.5",
 		"v2.3.0-beta.6"
 	],
+	"highlightLabels": [
+		"release-highlight"
+	],
 	"addContributors": true,
-	"addContributorCounts": false
+	"addContributorCounts": false,
+	"addHighlights": true
 }

@@ -44,11 +44,26 @@ async function getPreviousReleasePullRequests(repository, tag) {
 	return [...matches].map(match => parseInt(match[1])).filter(n => !isNaN(n));
 }
 
-async function getChangelog(prs, addContributors, addContributorCounts) {
+function getChangelogEntry(pr) {
+	return `- ${pr.title.trim()} #${pr.number}, by @${pr.user.login}`;
+}
+
+async function getChangelog(prs, addContributors, addContributorCounts, addHighlights, highlightLabels) {
 	console.log(`getChangelog prs=${prs.length} addContributors=${addContributors} addContributorCounts=${addContributorCounts}`);
 
-	let changelog = '## Changelog\n\n';
-	changelog += prs.map(it => `- ${it.title} #${it.number}, by @${it.user.login}`).join('\n');
+	let changelog = '';
+
+	if (addHighlights) {
+		const highlightedPrs = prs.filter(pr => pr.labels.some(label => highlightLabels.includes(label.name)));
+		if (highlightedPrs) {
+			changelog += '## Highlights\n\n';
+			changelog += highlightedPrs.map(getChangelogEntry).join('\n');
+			changelog += '\n\n';
+		}
+	}
+
+	changelog += '## Changelog\n\n';
+	changelog += prs.map(getChangelogEntry).join('\n');
 	changelog += '\n';
 
 	if (addContributors) {
@@ -90,7 +105,7 @@ function filterPullRequests(pullRequests, filter) {
 	const filter = await getFilterPullRequests(config.repository, config.previousReleases);
 	const prs = await getMergedPullRequests(config.repository, config.project);
 	const filteredPrs = filterPullRequests(prs, filter);
-	const changelog = await getChangelog(filteredPrs, config.addContributors, config.addContributorCounts);
+	const changelog = await getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.addHighlights, config.highlightLabels);
 
 	writeFileSync('pull_requests.json', JSON.stringify(prs, null, '\t'));
 	console.log('Pull requests written to pull_requests.json');

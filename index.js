@@ -27,7 +27,10 @@ async function getMergedPullRequests(repository, project) {
 		});
 		if (res.data.items.length == 0) break;
 
-		prs.push(...res.data.items);
+		for (const item of res.data.items) {
+			if (item.pull_request && item.pull_request.merged_at !== null) prs.push(item);
+			else console.warn(`skipping pull request ${item.id}: not merged`);
+		}
 
 		page++;
 	}
@@ -55,16 +58,18 @@ async function getChangelog(prs, addContributors, addContributorCounts, addHighl
 
 	if (addHighlights) {
 		const highlightedPrs = prs.filter(pr => pr.labels.some(label => highlightLabels.includes(label.name)));
-		if (highlightedPrs) {
+		if (highlightedPrs.length) {
 			changelog += '## Highlights\n\n';
 			changelog += highlightedPrs.map(getChangelogEntry).join('\n');
 			changelog += '\n\n';
 		}
 	}
 
-	changelog += '## Changelog\n\n';
-	changelog += prs.map(getChangelogEntry).join('\n');
-	changelog += '\n';
+	if (prs.length) {
+		changelog += '## Changelog\n\n';
+		changelog += prs.map(getChangelogEntry).join('\n');
+		changelog += '\n';
+	}
 
 	if (addContributors) {
 		changelog += '\n';

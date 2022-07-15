@@ -51,24 +51,45 @@ function getChangelogEntry(pr) {
 	return `- ${pr.title.trim()} #${pr.number}, by @${pr.user.login}`;
 }
 
-async function getChangelog(prs, addContributors, addContributorCounts, addHighlights, highlightLabels) {
+async function getChangelog(prs, addContributors, addContributorCounts, groups) {
 	console.log(`getChangelog prs=${prs.length} addContributors=${addContributors} addContributorCounts=${addContributorCounts}`);
 
-	let changelog = '';
+	const excludeFromChangelog = new Set();
+	const changelogGroups = [];
+	const changelogSymbol = Symbol();
+	for (const group of groups) {
+		if (group.type === 'changelog') {
+			changelogGroups.push(changelogSymbol);
+			continue;
+		}
 
-	if (addHighlights) {
-		const highlightedPrs = prs.filter(pr => pr.labels.some(label => highlightLabels.includes(label.name)));
-		if (highlightedPrs.length) {
-			changelog += '## Highlights\n\n';
-			changelog += highlightedPrs.map(getChangelogEntry).join('\n');
-			changelog += '\n\n';
+		const groupPrs = prs.filter(pr => pr.labels.some(label => group.labels.includes(label.name)));
+		if (groupPrs.length) {
+			let changelogGroup = '';
+			changelogGroup += `## ${group.name}\n\n`;
+			changelogGroup += groupPrs.map(getChangelogEntry).join('\n');
+			changelogGroup += '\n\n';
+			changelogGroups.push(changelogGroup);
+		}
+		if (group.exclusive) {
+			groupPrs.forEach(pr => excludeFromChangelog.add(pr));
 		}
 	}
+	
+	const leftOverPrs = prs.filter(pr => !excludeFromChangelog.has(pr));
+	let leftOverChangelog = '';
+	if (leftOverPrs.length) {
+		leftOverChangelog += '## Changelog\n\n';
+		leftOverChangelog += leftOverPrs.map(getChangelogEntry).join('\n');
+		leftOverChangelog += '\n\n';
+	}
 
-	if (prs.length) {
-		changelog += '## Changelog\n\n';
-		changelog += prs.map(getChangelogEntry).join('\n');
-		changelog += '\n';
+
+	let changelog = '';
+	if (changelogGroups.includes(changelogSymbol)) {
+		changelog += changelogGroups.map(group => group === changelogSymbol ? leftOverChangelog : group).join('');
+	} else {
+		changelog += changelogGroups.join('') + leftOverChangelog;
 	}
 
 	if (addContributors) {
@@ -110,7 +131,7 @@ function filterPullRequests(pullRequests, filter) {
 	const filter = await getFilterPullRequests(config.repository, config.previousReleases);
 	const prs = await getMergedPullRequests(config.repository, config.project);
 	const filteredPrs = filterPullRequests(prs, filter);
-	const changelog = await getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.addHighlights, config.highlightLabels);
+	const changelog = await getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.groups || []);
 
 	writeFileSync('pull_requests.json', JSON.stringify(prs, null, '\t'));
 	console.log('Pull requests written to pull_requests.json');

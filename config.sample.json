@@ -1,7 +1,7 @@
 {
 	"githubToken": "GitHub token (no scopes needed)",
 	"repository": "jellyfin/jellyfin-android",
-	"project": 15,
+	"milestone": "v2.3.0",
 	"previousReleases": [
 		"v2.3.0-beta.1",
 		"v2.3.0-beta.2",

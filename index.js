@@ -13,17 +13,17 @@ const octokit = new (Octokit.plugin(throttling))({
 		onAbuseLimit: (retryAfter, options) => console.log(`Abuse detected for request ${options.method} ${options.url}. Retry after ${retryAfter} seconds.`),
 	},
 });
-async function getMergedPullRequests(repository, project) {
-	console.log(`getMergedPullRequests ${repository}:${project}`);
+async function getMergedPullRequests(repository, milestone) {
+	console.log(`getMergedPullRequests ${repository}:${milestone}`);
 	const prs = [];
 
 	let page = 1;
 	while (true) {
-		console.log(`getMergedPullRequests ${repository}:${project} page ${page}`);
+		console.log(`getMergedPullRequests ${repository}:${milestone} page ${page}`);
 		const res = await octokit.search.issuesAndPullRequests({
 			per_page: 100,
 			page,
-			q: `repo:${repository} is:pr project:${repository}/${project} sort:created-asc`,
+			q: `repo:${repository} is:pr milestone:${milestone} sort:created-asc`,
 		});
 		if (res.data.items.length == 0) break;
 
@@ -93,7 +93,6 @@ async function getChangelog(prs, addContributors, addContributorCounts, groups) 
 	}
 
 	if (addContributors) {
-		changelog += '\n';
 		changelog += '## Contributors\n\n';
 		changelog += Object.entries(prs.reduce((map, it) => {
 			if (it.user.login in map) map[it.user.login] += 1;
@@ -129,7 +128,7 @@ function filterPullRequests(pullRequests, filter) {
 
 (async () => {
 	const filter = await getFilterPullRequests(config.repository, config.previousReleases);
-	const prs = await getMergedPullRequests(config.repository, config.project);
+	const prs = await getMergedPullRequests(config.repository, config.milestone);
 	const filteredPrs = filterPullRequests(prs, filter);
 	const changelog = await getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.groups || []);
 

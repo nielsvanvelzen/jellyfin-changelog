@@ -21,17 +21,29 @@ GitHub authentication token. Can be created at https://github.com/settings/token
 
 The GitHub owner+repository in the format `owner:repository`. Like `jellyfin/jellyfin-androidtv`.
 
-### project
+### milestone
 
-The GitHub project id to read pull requests from. This is appended to the url when opening the project.
+The GitHub milestone name to read pull requests from.
 
 ### previousReleases
 
 An array of tags to read descriptions from to filter out changelog entries. Normally used between beta releases to only list new changes.
 
-### highlightLabels
+## groups
 
-An array of label names to use for the `addHighlights` option.
+Array of changelog groups. Either `{ "type": "changelog" }` for all "left over" pull requests or an object with the following properties:
+
+### name
+
+The name of the group.
+
+### labels
+
+String array with the labels a pull request must have any of.
+
+### exclusive
+
+When set to true the pull requests in this list will never be added to the left over group.
 
 ### addContributors
 
@@ -40,7 +52,3 @@ Adds the contributors for the changelog items in order of most pull requests to 
 ### addContributorCounts
 
 Add the amount of contributions to each contributor. Set to false to disable.
-
-### addHighlights
-
-Add the pull requests with a label from highlightLabels to a "Highlights" section above the changelog. Pull requests are still added to the changelog section.

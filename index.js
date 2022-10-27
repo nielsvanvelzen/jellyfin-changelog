@@ -51,14 +51,54 @@ function getChangelogEntry(pr) {
 	return `- ${pr.title.trim()} #${pr.number}, by @${pr.user.login}`;
 }
 
+function getRenovateEntries(prs) {
+	let lines = '';
+
+	let updates = {};
+	function writeUpdates() {
+		for (const dependency of Object.keys(updates)) {
+			const versions = updates[dependency];
+			lines += `- Update ${dependency}\n`;
+			for (const { version, pr } of versions) {
+				lines += `  - ${version} #${pr.number}\n`;
+			}
+		}
+
+		updates = {};
+	}
+
+	for (const pr of prs) {
+		if (pr.user.login !== 'renovate[bot]') {
+			writeUpdates();
+			lines += `${getChangelogEntry(pr)}\n`;
+			continue;
+		}
+
+		try {
+			const [, dependency, version] = pr.title.match(/^Update (?:dependency |)(.*?)(?: digest|) to (.*?)$/);
+			if (!(dependency in updates)) updates[dependency] = [];
+			updates[dependency].push({ version, pr });
+		} catch (err) {
+			writeUpdates();
+			lines += `${getChangelogEntry(pr)}\n`;
+		}
+	}
+
+	writeUpdates();
+
+	return lines;
+}
+
 async function getChangelog(prs, addContributors, addContributorCounts, groups) {
 	console.log(`getChangelog prs=${prs.length} addContributors=${addContributors} addContributorCounts=${addContributorCounts}`);
 
 	const excludeFromChangelog = new Set();
 	const changelogGroups = [];
 	const changelogSymbol = Symbol();
+	let defaultGroup = null;
 	for (const group of groups) {
 		if (group.type === 'changelog') {
+			defaultGroup = group;
 			changelogGroups.push(changelogSymbol);
 			continue;
 		}
@@ -66,9 +106,10 @@ async function getChangelog(prs, addContributors, addContributorCounts, groups) 
 		const groupPrs = prs.filter(pr => pr.labels.some(label => group.labels.includes(label.name)));
 		if (groupPrs.length) {
 			let changelogGroup = '';
-			changelogGroup += `## ${group.name}\n\n`;
-			changelogGroup += groupPrs.map(getChangelogEntry).join('\n');
-			changelogGroup += '\n\n';
+			changelogGroup += `\n## ${group.name}\n\n`;
+			if (group.renovate) changelogGroup += getRenovateEntries(groupPrs);
+			else changelogGroup += groupPrs.map(getChangelogEntry).join('\n');
+			changelogGroup += '\n';
 			changelogGroups.push(changelogGroup);
 		}
 		if (group.exclusive) {
@@ -79,13 +120,13 @@ async function getChangelog(prs, addContributors, addContributorCounts, groups) 
 	const leftOverPrs = prs.filter(pr => !excludeFromChangelog.has(pr));
 	let leftOverChangelog = '';
 	if (leftOverPrs.length) {
-		leftOverChangelog += '## Changelog\n\n';
+		leftOverChangelog += `\n## ${(defaultGroup ? defaultGroup.name : null) ?? 'Changelog'}\n\n`;
 		leftOverChangelog += leftOverPrs.map(getChangelogEntry).join('\n');
-		leftOverChangelog += '\n\n';
+		leftOverChangelog += '\n';
 	}
 
 
-	let changelog = '';
+	let changelog = ``;
 	if (changelogGroups.includes(changelogSymbol)) {
 		changelog += changelogGroups.map(group => group === changelogSymbol ? leftOverChangelog : group).join('');
 	} else {
@@ -105,7 +146,7 @@ async function getChangelog(prs, addContributors, addContributorCounts, groups) 
 		changelog += '\n';
 	}
 
-	return changelog;
+	return changelog.trimStart();
 }
 
 async function getFilterPullRequests(repository, releaseTags) {

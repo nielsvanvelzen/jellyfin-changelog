@@ -1,7 +1,9 @@
 const { Octokit } = require('@octokit/rest');
 const { throttling } = require('@octokit/plugin-throttling');
-const { writeFileSync } = require('fs');
-const config = require('./config.json');
+const { readFileSync, writeFileSync } = require('fs');
+const yaml = require('yaml');
+
+const config = yaml.parse(readFileSync('./config.yaml', 'utf8'));
 
 const octokit = new (Octokit.plugin(throttling))({
 	auth: config.githubToken,

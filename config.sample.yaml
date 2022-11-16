@@ -1,0 +1,22 @@
+githubToken: GitHub token (no scopes needed)
+repository: jellyfin/jellyfin-android
+milestone: v2.3.0
+
+previousReleases:
+  - v2.3.0-beta.1
+  - v2.3.0-beta.2
+  - v2.3.0-beta.3
+  - v2.3.0-beta.4
+  - v2.3.0-beta.5
+  - v2.3.0-beta.6
+
+groups:
+  - name: Highlights
+    labels: [release-highlight]
+  - type: changelog
+  - name: Dependency updates
+    labels: [dependencies]
+    exclusive: true
+
+addContributors: true
+addContributorCounts: false

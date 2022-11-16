@@ -4,4 +4,4 @@ node_modules
 # Project
 pull_requests.json
 changelog.md
-config.json
+config.yaml

@@ -1,9 +1,18 @@
-import { Octokit } from '@octokit/rest';
-import { throttling } from '@octokit/plugin-throttling';
-import { readFileSync, writeFileSync } from 'fs';
-import { parse } from 'yaml';
+import { Octokit } from 'npm:@octokit/rest';
+import { throttling } from 'npm:@octokit/plugin-throttling';
+import yaml from 'npm:yaml';
 
-const config = parse(readFileSync('./config.yaml', 'utf8'));
+function readFileSync(path, label) {
+	const decoder = new TextDecoder(label);
+	return decoder.decode(Deno.readFileSync(path));
+}
+
+function writeFileSync(path, content) {
+	const encoder = new TextEncoder();
+	Deno.writeFileSync(path, encoder.encode(content));
+}
+
+const config = yaml.parse(readFileSync('./config.yaml', 'utf8'));
 
 const octokit = new (Octokit.plugin(throttling))({
 	auth: config.githubToken,
@@ -44,7 +53,7 @@ async function getPreviousReleasePullRequests(repository, tag) {
 	console.log(`getPreviousReleasePullRequests ${repository}:${tag}`);
 	const [owner, repo] = repository.split('/');
 	const res = await octokit.repos.getReleaseByTag({ owner, repo, tag });
-	const matches = res.data.body.matchAll(/\s+#(\d{1,5}),/g);
+	const matches = res.data.body.matchAll(/\s+#(\d{1,5})(?:,|\n)/g);
 
 	return [...matches].map(match => parseInt(match[1])).filter(n => !isNaN(n));
 }

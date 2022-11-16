@@ -2,12 +2,12 @@ import { Octokit } from 'npm:@octokit/rest';
 import { throttling } from 'npm:@octokit/plugin-throttling';
 import yaml from 'npm:yaml';
 
-function readFileSync(path, label) {
+function readFileSync(path: string, label: string): string {
 	const decoder = new TextDecoder(label);
 	return decoder.decode(Deno.readFileSync(path));
 }
 
-function writeFileSync(path, content) {
+function writeFileSync(path: string, content: string): void {
 	const encoder = new TextEncoder();
 	Deno.writeFileSync(path, encoder.encode(content));
 }
@@ -18,13 +18,18 @@ const octokit = new (Octokit.plugin(throttling))({
 	auth: config.githubToken,
 	throttle: {
 		onRateLimit: (retryAfter, options) => {
-			console.log(`Request quota exhausted for request ${options.method} ${options.url}. Retry after ${retryAfter} seconds.`);
+			console.log(
+				`Request quota exhausted for request ${options.method} ${options.url}. Retry after ${retryAfter} seconds.`
+			);
 			return true;
 		},
-		onAbuseLimit: (retryAfter, options) => console.log(`Abuse detected for request ${options.method} ${options.url}. Retry after ${retryAfter} seconds.`),
+		onAbuseLimit: (retryAfter, options) =>
+			console.log(
+				`Abuse detected for request ${options.method} ${options.url}. Retry after ${retryAfter} seconds.`
+			),
 	},
 });
-async function getMergedPullRequests(repository, milestone) {
+async function getMergedPullRequests(repository: string, milestone: string): Promise<Record<string, any>[]> {
 	console.log(`getMergedPullRequests ${repository}:${milestone}`);
 	const prs = [];
 
@@ -49,7 +54,7 @@ async function getMergedPullRequests(repository, milestone) {
 	return prs;
 }
 
-async function getPreviousReleasePullRequests(repository, tag) {
+async function getPreviousReleasePullRequests(repository: string, tag: string): Promise<number[]> {
 	console.log(`getPreviousReleasePullRequests ${repository}:${tag}`);
 	const [owner, repo] = repository.split('/');
 	const res = await octokit.repos.getReleaseByTag({ owner, repo, tag });
@@ -58,14 +63,14 @@ async function getPreviousReleasePullRequests(repository, tag) {
 	return [...matches].map(match => parseInt(match[1])).filter(n => !isNaN(n));
 }
 
-function getChangelogEntry(pr) {
+function getChangelogEntry(pr: any): string {
 	return `- ${pr.title.trim()} #${pr.number}, by @${pr.user.login}`;
 }
 
-function getRenovateEntries(prs) {
+function getRenovateEntries(prs: any[]): string {
 	let lines = '';
 
-	let updates = {};
+	let updates: Record<string, { version: string; pr: any }[]> = {};
 	function writeUpdates() {
 		for (const dependency of Object.keys(updates)) {
 			const versions = updates[dependency];
@@ -100,8 +105,10 @@ function getRenovateEntries(prs) {
 	return lines;
 }
 
-function getChangelog(prs, addContributors, addContributorCounts, groups) {
-	console.log(`getChangelog prs=${prs.length} addContributors=${addContributors} addContributorCounts=${addContributorCounts}`);
+function getChangelog(prs: any[], addContributors: boolean, addContributorCounts: boolean, groups: any[]) {
+	console.log(
+		`getChangelog prs=${prs.length} addContributors=${addContributors} addContributorCounts=${addContributorCounts}`
+	);
 
 	const excludeFromChangelog = new Set();
 	const changelogGroups = [];
@@ -136,33 +143,37 @@ function getChangelog(prs, addContributors, addContributorCounts, groups) {
 		leftOverChangelog += '\n';
 	}
 
-
 	let changelog = ``;
 	if (changelogGroups.includes(changelogSymbol)) {
-		changelog += changelogGroups.map(group => group === changelogSymbol ? leftOverChangelog : group).join('');
+		changelog += changelogGroups.map(group => (group === changelogSymbol ? leftOverChangelog : group)).join('');
 	} else {
 		changelog += changelogGroups.join('') + leftOverChangelog;
 	}
 
 	if (addContributors) {
 		changelog += '## Contributors\n\n';
-		changelog += Object.entries(prs.reduce((map, it) => {
-			if (it.user.login in map) map[it.user.login] += 1;
-			else map[it.user.login] = 1;
+		changelog += Object.entries(
+			prs.reduce((map, it) => {
+				if (it.user.login in map) map[it.user.login] += 1;
+				else map[it.user.login] = 1;
 
-			return map;
-		}, {})).sort((a,b) => b[1] - a[1]).map(([username, amount]) => {
-			return `- @${username}` + (addContributorCounts ? ` (${amount})` : '');
-		}).join('\n');
+				return map;
+			}, {})
+		)
+			.sort((a, b) => b[1] - a[1])
+			.map(([username, amount]) => {
+				return `- @${username}` + (addContributorCounts ? ` (${amount})` : '');
+			})
+			.join('\n');
 		changelog += '\n';
 	}
 
 	return changelog.trimStart();
 }
 
-async function getFilterPullRequests(repository, releaseTags) {
+async function getFilterPullRequests(repository: string, releaseTags: string[]): Promise<number[]> {
 	console.log(`getFilterPullRequests ${repository}:${releaseTags.length} tags`);
-	const filterIds = new Set();
+	const filterIds = new Set<number>();
 
 	for (const tag of releaseTags) {
 		for (const id of await getPreviousReleasePullRequests(repository, tag)) {
@@ -173,7 +184,7 @@ async function getFilterPullRequests(repository, releaseTags) {
 	return Array.from(filterIds);
 }
 
-function filterPullRequests(pullRequests, filter) {
+function filterPullRequests(pullRequests: any[], filter: number[]) {
 	console.log(`filterPullRequests prs=${pullRequests.length} filter=${filter.length}`);
 	return pullRequests.filter(pr => !filter.includes(pr.number));
 }
@@ -182,7 +193,12 @@ function filterPullRequests(pullRequests, filter) {
 	const filter = await getFilterPullRequests(config.repository, config.previousReleases);
 	const prs = await getMergedPullRequests(config.repository, config.milestone);
 	const filteredPrs = filterPullRequests(prs, filter);
-	const changelog = getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.groups || []);
+	const changelog = getChangelog(
+		filteredPrs,
+		config.addContributors,
+		config.addContributorCounts,
+		config.groups || []
+	);
 
 	writeFileSync('pull_requests.json', JSON.stringify(prs, null, '\t'));
 	console.log('Pull requests written to pull_requests.json');

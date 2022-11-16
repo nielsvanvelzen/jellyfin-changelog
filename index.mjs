@@ -53,7 +53,7 @@ async function getPreviousReleasePullRequests(repository, tag) {
 	console.log(`getPreviousReleasePullRequests ${repository}:${tag}`);
 	const [owner, repo] = repository.split('/');
 	const res = await octokit.repos.getReleaseByTag({ owner, repo, tag });
-	const matches = res.data.body.matchAll(/\s+#(\d{1,5})(?:,|\n)/g);
+	const matches = res.data.body.matchAll(/\s+#(\d{1,5})(?:,|$)/gm);
 
 	return [...matches].map(match => parseInt(match[1])).filter(n => !isNaN(n));
 }
@@ -100,7 +100,7 @@ function getRenovateEntries(prs) {
 	return lines;
 }
 
-async function getChangelog(prs, addContributors, addContributorCounts, groups) {
+function getChangelog(prs, addContributors, addContributorCounts, groups) {
 	console.log(`getChangelog prs=${prs.length} addContributors=${addContributors} addContributorCounts=${addContributorCounts}`);
 
 	const excludeFromChangelog = new Set();
@@ -182,7 +182,7 @@ function filterPullRequests(pullRequests, filter) {
 	const filter = await getFilterPullRequests(config.repository, config.previousReleases);
 	const prs = await getMergedPullRequests(config.repository, config.milestone);
 	const filteredPrs = filterPullRequests(prs, filter);
-	const changelog = await getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.groups || []);
+	const changelog = getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.groups || []);
 
 	writeFileSync('pull_requests.json', JSON.stringify(prs, null, '\t'));
 	console.log('Pull requests written to pull_requests.json');

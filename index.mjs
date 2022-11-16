@@ -1,9 +1,9 @@
-const { Octokit } = require('@octokit/rest');
-const { throttling } = require('@octokit/plugin-throttling');
-const { readFileSync, writeFileSync } = require('fs');
-const yaml = require('yaml');
+import { Octokit } from '@octokit/rest';
+import { throttling } from '@octokit/plugin-throttling';
+import { readFileSync, writeFileSync } from 'fs';
+import { parse } from 'yaml';
 
-const config = yaml.parse(readFileSync('./config.yaml', 'utf8'));
+const config = parse(readFileSync('./config.yaml', 'utf8'));
 
 const octokit = new (Octokit.plugin(throttling))({
 	auth: config.githubToken,
@@ -45,7 +45,7 @@ async function getPreviousReleasePullRequests(repository, tag) {
 	const [owner, repo] = repository.split('/');
 	const res = await octokit.repos.getReleaseByTag({ owner, repo, tag });
 	const matches = res.data.body.matchAll(/\s+#(\d{1,5}),/g);
-	
+
 	return [...matches].map(match => parseInt(match[1])).filter(n => !isNaN(n));
 }
 
@@ -118,7 +118,7 @@ async function getChangelog(prs, addContributors, addContributorCounts, groups) 
 			groupPrs.forEach(pr => excludeFromChangelog.add(pr));
 		}
 	}
-	
+
 	const leftOverPrs = prs.filter(pr => !excludeFromChangelog.has(pr));
 	let leftOverChangelog = '';
 	if (leftOverPrs.length) {

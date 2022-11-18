@@ -1,16 +1,6 @@
 import { Octokit, throttling, yaml } from './deps.ts';
 
-function readFileSync(path: string, label: string): string {
-	const decoder = new TextDecoder(label);
-	return decoder.decode(Deno.readFileSync(path));
-}
-
-function writeFileSync(path: string, content: string): void {
-	const encoder = new TextEncoder();
-	Deno.writeFileSync(path, encoder.encode(content));
-}
-
-const config = yaml.parse(readFileSync('./config.yaml', 'utf8'));
+const config = yaml.parse(await Deno.readTextFile('./config.yaml'));
 
 const octokit = new (Octokit.plugin(throttling))({
 	auth: config.githubToken,
@@ -187,19 +177,12 @@ function filterPullRequests(pullRequests: any[], filter: number[]) {
 	return pullRequests.filter(pr => !filter.includes(pr.number));
 }
 
-(async () => {
-	const filter = await getFilterPullRequests(config.repository, config.previousReleases);
-	const prs = await getMergedPullRequests(config.repository, config.milestone);
-	const filteredPrs = filterPullRequests(prs, filter);
-	const changelog = getChangelog(
-		filteredPrs,
-		config.addContributors,
-		config.addContributorCounts,
-		config.groups || []
-	);
+const filter = await getFilterPullRequests(config.repository, config.previousReleases);
+const prs = await getMergedPullRequests(config.repository, config.milestone);
+const filteredPrs = filterPullRequests(prs, filter);
+const changelog = getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.groups || []);
 
-	writeFileSync('pull_requests.json', JSON.stringify(prs, null, '\t'));
-	console.log('Pull requests written to pull_requests.json');
-	writeFileSync('changelog.md', changelog);
-	console.log('Changelog written to changelog.md');
-})();
+await Deno.writeTextFile('pull_requests.json', JSON.stringify(prs, null, '\t'));
+console.log('Pull requests written to pull_requests.json');
+await Deno.writeTextFile('changelog.md', changelog);
+console.log('Changelog written to changelog.md');

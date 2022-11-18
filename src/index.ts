@@ -1,6 +1,7 @@
-import { Octokit, throttling, yaml } from './deps.ts';
+import { parseConfig } from './config.ts';
+import { Octokit, throttling } from './deps.ts';
 
-const config = yaml.parse(await Deno.readTextFile('./config.yaml'));
+const config = parseConfig(await Deno.readTextFile('./config.yaml'));
 
 const octokit = new (Octokit.plugin(throttling))({
 	auth: config.githubToken,

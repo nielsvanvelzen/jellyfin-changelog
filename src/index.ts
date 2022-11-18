@@ -1,6 +1,4 @@
-import { Octokit } from 'npm:@octokit/rest';
-import { throttling } from 'npm:@octokit/plugin-throttling';
-import * as yaml from 'https://deno.land/std@0.165.0/encoding/yaml.ts';
+import { Octokit, throttling, yaml } from './deps.ts';
 
 function readFileSync(path: string, label: string): string {
 	const decoder = new TextDecoder(label);

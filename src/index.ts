@@ -1,56 +1,9 @@
 import { parseConfig } from './config.ts';
-import { Octokit, throttling } from './deps.ts';
+import { GitHub } from './github.ts';
 
 const config = parseConfig(await Deno.readTextFile('./config.yaml'));
 
-const octokit = new (Octokit.plugin(throttling))({
-	auth: config.githubToken,
-	throttle: {
-		onRateLimit: (retryAfter, options) => {
-			console.log(
-				`Request quota exhausted for request ${options.method} ${options.url}. Retry after ${retryAfter} seconds.`
-			);
-			return true;
-		},
-		onAbuseLimit: (retryAfter, options) =>
-			console.log(
-				`Abuse detected for request ${options.method} ${options.url}. Retry after ${retryAfter} seconds.`
-			),
-	},
-});
-async function getMergedPullRequests(repository: string, milestone: string): Promise<Record<string, any>[]> {
-	console.log(`getMergedPullRequests ${repository}:${milestone}`);
-	const prs = [];
-
-	let page = 1;
-	while (true) {
-		console.log(`getMergedPullRequests ${repository}:${milestone} page ${page}`);
-		const res = await octokit.search.issuesAndPullRequests({
-			per_page: 100,
-			page,
-			q: `repo:${repository} is:pr milestone:${milestone} sort:created-asc`,
-		});
-		if (res.data.items.length == 0) break;
-
-		for (const item of res.data.items) {
-			if (item.pull_request && item.pull_request.merged_at !== null) prs.push(item);
-			else console.warn(`skipping pull request ${item.id}: not merged`);
-		}
-
-		page++;
-	}
-
-	return prs;
-}
-
-async function getPreviousReleasePullRequests(repository: string, tag: string): Promise<number[]> {
-	console.log(`getPreviousReleasePullRequests ${repository}:${tag}`);
-	const [owner, repo] = repository.split('/');
-	const res = await octokit.repos.getReleaseByTag({ owner, repo, tag });
-	const matches = res.data.body.matchAll(/\s+#(\d{1,5})(?:,|$)/gm);
-
-	return [...matches].map(match => parseInt(match[1])).filter(n => !isNaN(n));
-}
+const github = new GitHub(config.githubToken);
 
 function getChangelogEntry(pr: any): string {
 	return `- ${pr.title.trim()} #${pr.number}, by @${pr.user.login}`;
@@ -165,7 +118,7 @@ async function getFilterPullRequests(repository: string, releaseTags: string[]):
 	const filterIds = new Set<number>();
 
 	for (const tag of releaseTags) {
-		for (const id of await getPreviousReleasePullRequests(repository, tag)) {
+		for (const id of await github.getPreviousReleasePullRequests(repository, tag)) {
 			filterIds.add(id);
 		}
 	}
@@ -179,7 +132,7 @@ function filterPullRequests(pullRequests: any[], filter: number[]) {
 }
 
 const filter = await getFilterPullRequests(config.repository, config.previousReleases);
-const prs = await getMergedPullRequests(config.repository, config.milestone);
+const prs = await github.getMergedPullRequests(config.repository, config.milestone);
 const filteredPrs = filterPullRequests(prs, filter);
 const changelog = getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.groups || []);
 

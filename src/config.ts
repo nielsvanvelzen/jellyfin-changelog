@@ -15,6 +15,7 @@ function groupConfigTypeFrom(name: string): GroupConfigType | null {
 
 export class GroupConfig {
 	public type: GroupConfigType = GroupConfigType.Section;
+	public name: string;
 	public labels: string[] = [];
 	public authors: string[] = [];
 
@@ -23,6 +24,9 @@ export class GroupConfig {
 
 		if ('type' in object && typeof object.type === 'string')
 			config.type = groupConfigTypeFrom(object.type) || config.type;
+
+		if ('name' in object && typeof object.name === 'string') config.name = object.name;
+		else throw new Error('Missing name in config group');
 
 		if ('labels' in object && Array.isArray(object.labels)) config.labels = object.labels;
 

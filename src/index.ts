@@ -89,6 +89,7 @@ function getChangelogContributors(pullRequests: PullRequest[]): { author: string
 
 function createChangelog(
 	pullRequests: PullRequest[],
+	title: string,
 	prefix: string,
 	suffix: string,
 	groups: GroupConfig[],
@@ -100,7 +101,7 @@ function createChangelog(
 
 	// Create markdown
 	const md = new MarkdownBuilder();
-	md.appendHeading('Changelog', 1);
+	if (title) md.appendHeading(title, 1);
 
 	if (prefix.length) md.appendLine(prefix);
 
@@ -173,6 +174,7 @@ const github = new GitHub(config.githubToken);
 const pullRequests = await findPullRequests(config.repository, config.milestone, config.previousReleases);
 const changelog = createChangelog(
 	pullRequests,
+	config.title,
 	config.prefix,
 	config.suffix,
 	config.groups,

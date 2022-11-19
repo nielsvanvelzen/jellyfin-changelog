@@ -42,6 +42,7 @@ export class Config {
 	public milestone: string = null!;
 	public addContributors = false;
 	public addContributorCounts = false;
+	public title = 'Changelog';
 	public prefix = '';
 	public suffix = '';
 	public previousReleases: string[] = [];
@@ -64,6 +65,7 @@ export class Config {
 		if ('addContributorCounts' in object && typeof object.addContributorCounts === 'boolean')
 			config.addContributorCounts = object.addContributorCounts;
 
+		if ('title' in object && typeof object.title === 'string') config.title = object.title;
 		if ('prefix' in object && typeof object.prefix === 'string') config.prefix = object.prefix;
 		if ('suffix' in object && typeof object.suffix === 'string') config.suffix = object.suffix;
 

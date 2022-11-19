@@ -1,142 +1,184 @@
-import { parseConfig } from './config.ts';
+import { MarkdownBuilder } from './markdown.ts';
+import { GroupConfig, GroupConfigType, parseConfig } from './config.ts';
+import { PullRequest } from './deps.ts';
 import { GitHub } from './github.ts';
 
-const config = parseConfig(await Deno.readTextFile('./config.yaml'));
+async function getPreviousReleasePullRequests(repository: string, previousRelease: string) {
+	const releaseNotes = await github.getTagReleaseNotes(repository, previousRelease);
+	const matches = releaseNotes.matchAll(/\s+#(\d{1,5})(?:,|$)/gm);
 
-const github = new GitHub(config.githubToken);
-
-function getChangelogEntry(pr: any): string {
-	return `- ${pr.title.trim()} #${pr.number}, by @${pr.user.login}`;
+	return [...matches].map(match => parseInt(match[1])).filter(n => !isNaN(n));
 }
 
-function getRenovateEntries(prs: any[]): string {
-	let lines = '';
-
-	let updates: Record<string, { version: string; pr: any }[]> = {};
-	function writeUpdates() {
-		for (const dependency of Object.keys(updates)) {
-			const versions = updates[dependency];
-			lines += `- Update ${dependency}\n`;
-			for (const { version, pr } of versions) {
-				lines += `  - ${version} #${pr.number}\n`;
-			}
-		}
-
-		updates = {};
-	}
-
-	for (const pr of prs) {
-		if (pr.user.login !== 'renovate[bot]') {
-			writeUpdates();
-			lines += `${getChangelogEntry(pr)}\n`;
-			continue;
-		}
-
-		try {
-			const [, dependency, version] = pr.title.match(/^Update (?:dependency |)(.*?)(?: digest|) to (.*?)$/);
-			if (!(dependency in updates)) updates[dependency] = [];
-			updates[dependency].push({ version, pr });
-		} catch (err) {
-			writeUpdates();
-			lines += `${getChangelogEntry(pr)}\n`;
-		}
-	}
-
-	writeUpdates();
-
-	return lines;
-}
-
-function getChangelog(prs: any[], addContributors: boolean, addContributorCounts: boolean, groups: any[]) {
-	console.log(
-		`getChangelog prs=${prs.length} addContributors=${addContributors} addContributorCounts=${addContributorCounts}`
-	);
-
-	const excludeFromChangelog = new Set();
-	const changelogGroups = [];
-	const changelogSymbol = Symbol();
-	let defaultGroup = null;
-	for (const group of groups) {
-		if (group.type === 'changelog') {
-			defaultGroup = group;
-			changelogGroups.push(changelogSymbol);
-			continue;
-		}
-
-		const groupPrs = prs.filter(pr => pr.labels.some(label => group.labels.includes(label.name)));
-		if (groupPrs.length) {
-			let changelogGroup = '';
-			changelogGroup += `\n## ${group.name}\n\n`;
-			if (group.renovate) changelogGroup += getRenovateEntries(groupPrs);
-			else changelogGroup += groupPrs.map(getChangelogEntry).join('\n');
-			changelogGroup += '\n';
-			changelogGroups.push(changelogGroup);
-		}
-		if (group.exclusive) {
-			groupPrs.forEach(pr => excludeFromChangelog.add(pr));
-		}
-	}
-
-	const leftOverPrs = prs.filter(pr => !excludeFromChangelog.has(pr));
-	let leftOverChangelog = '';
-	if (leftOverPrs.length) {
-		leftOverChangelog += `\n## ${(defaultGroup ? defaultGroup.name : null) ?? 'Changelog'}\n\n`;
-		leftOverChangelog += leftOverPrs.map(getChangelogEntry).join('\n');
-		leftOverChangelog += '\n';
-	}
-
-	let changelog = ``;
-	if (changelogGroups.includes(changelogSymbol)) {
-		changelog += changelogGroups.map(group => (group === changelogSymbol ? leftOverChangelog : group)).join('');
-	} else {
-		changelog += changelogGroups.join('') + leftOverChangelog;
-	}
-
-	if (addContributors) {
-		changelog += '## Contributors\n\n';
-		changelog += Object.entries(
-			prs.reduce((map, it) => {
-				if (it.user.login in map) map[it.user.login] += 1;
-				else map[it.user.login] = 1;
-
-				return map;
-			}, {})
-		)
-			.sort((a, b) => b[1] - a[1])
-			.map(([username, amount]) => {
-				return `- @${username}` + (addContributorCounts ? ` (${amount})` : '');
-			})
-			.join('\n');
-		changelog += '\n';
-	}
-
-	return changelog.trimStart();
-}
-
-async function getFilterPullRequests(repository: string, releaseTags: string[]): Promise<number[]> {
-	console.log(`getFilterPullRequests ${repository}:${releaseTags.length} tags`);
+async function getPreviousReleasesPullRequests(repository: string, previousReleases: string[]): Promise<number[]> {
+	console.log(`getPreviousReleasesPullRequests ${repository}:${previousReleases.length} releases`);
 	const filterIds = new Set<number>();
 
-	for (const tag of releaseTags) {
-		for (const id of await github.getPreviousReleasePullRequests(repository, tag)) {
-			filterIds.add(id);
-		}
+	for (const previousRelease of previousReleases) {
+		const pullRequests = await getPreviousReleasePullRequests(repository, previousRelease);
+		for (const id of pullRequests) filterIds.add(id);
 	}
 
 	return Array.from(filterIds);
 }
 
-function filterPullRequests(pullRequests: any[], filter: number[]) {
-	console.log(`filterPullRequests prs=${pullRequests.length} filter=${filter.length}`);
-	return pullRequests.filter(pr => !filter.includes(pr.number));
+async function findPullRequests(repository: string, milestone: string, previousReleases: string[]) {
+	const milestonePullRequests = await github.getMergedPullRequests(repository, milestone);
+	const previousReleasesPullRequests = await getPreviousReleasesPullRequests(repository, previousReleases);
+
+	return milestonePullRequests.filter(pr => !previousReleasesPullRequests.includes(pr.number));
 }
 
-const filter = await getFilterPullRequests(config.repository, config.previousReleases);
-const prs = await github.getMergedPullRequests(config.repository, config.milestone);
-const filteredPrs = filterPullRequests(prs, filter);
-const changelog = getChangelog(filteredPrs, config.addContributors, config.addContributorCounts, config.groups || []);
+function getChangelogSections(
+	pullRequests: PullRequest[],
+	groups: GroupConfig[]
+): { config: GroupConfig; pullRequests: PullRequest[] }[] {
+	const sections: { config: GroupConfig; pullRequests: PullRequest[] }[] = groups.map(group => ({
+		config: group,
+		pullRequests: [],
+	}));
 
-await Deno.writeTextFile('pull_requests.json', JSON.stringify(prs, null, '\t'));
-console.log('Pull requests written to pull_requests.json');
+	const leftOver = new Set(pullRequests);
+
+	for (const section of sections) {
+		if (section.config.type === GroupConfigType.Leftover) continue;
+
+		for (const pr of leftOver) {
+			// Filter author
+			if (section.config.authors.length && !section.config.authors.includes(pr.user!.login)) continue;
+			// Filter labels
+			if (section.config.labels.length) {
+				let found = false;
+				for (const label of pr.labels) {
+					if (section.config.labels.includes(label.name!)) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) continue;
+			}
+
+			section.pullRequests.push(pr);
+			leftOver.delete(pr);
+		}
+	}
+
+	for (const section of sections) {
+		if (section.config.type !== GroupConfigType.Leftover) continue;
+		section.pullRequests.push(...leftOver);
+	}
+
+	return sections;
+}
+
+function getChangelogContributors(pullRequests: PullRequest[]): { author: string; count: number }[] {
+	const contributorMap = new Map<string, number>();
+
+	for (const pr of pullRequests) {
+		const user = pr.user!.login;
+		if (!contributorMap.has(user)) contributorMap.set(user, 1);
+		else contributorMap.set(user, contributorMap.get(user)! + 1);
+	}
+
+	const contributors = [...contributorMap.entries()]
+		.map(([author, count]) => ({ author, count }))
+		.sort((a, b) => b.count - a.count);
+
+	return contributors;
+}
+
+function createChangelog(
+	pullRequests: PullRequest[],
+	prefix: string,
+	suffix: string,
+	groups: GroupConfig[],
+	addContributors: boolean,
+	addContributorCounts: boolean
+): string {
+	const sections = getChangelogSections(pullRequests, groups);
+	const contributors = getChangelogContributors(pullRequests);
+
+	// Create markdown
+	const md = new MarkdownBuilder();
+	md.appendHeading('Changelog', 1);
+
+	if (prefix.length) md.appendLine(prefix);
+
+	for (const section of sections) {
+		// Skip empty groups
+		if (!section.pullRequests.length) continue;
+
+		md.appendHeading(section.config.name, 2);
+
+		if (section.config.type === GroupConfigType.Dependencies) {
+			const dependencies: Record<string, { version: string; pullRequest: PullRequest }[]> = {};
+			const leftOver: PullRequest[] = [];
+
+			for (const pr of section.pullRequests) {
+				const match = pr.title.match(/^Update (?:dependency |)(.*?)(?: digest|) to (.*?)$/);
+
+				if (match) {
+					const [, dependency, version] = match;
+					if (!(dependency in dependencies)) dependencies[dependency] = [];
+					dependencies[dependency].push({ version, pullRequest: pr });
+				} else {
+					leftOver.push(pr);
+				}
+			}
+
+			for (const [dependency, versions] of Object.entries(dependencies)) {
+				if (versions.length === 1) {
+					const pr = versions[0].pullRequest;
+					md.appendPullRequest(pr.title, pr.user!.login, pr.number);
+				} else {
+					md.appendPullRequests(
+						`Update ${dependency}`,
+						'to ',
+						versions.map(({ version, pullRequest }) => ({
+							title: version,
+							author: pullRequest.user!.login,
+							id: pullRequest.number,
+						}))
+					);
+				}
+			}
+
+			for (const pr of leftOver) {
+				md.appendPullRequest(pr.title, pr.user!.login, pr.number);
+			}
+		} else {
+			for (const pr of section.pullRequests) {
+				md.appendPullRequest(pr.title, pr.user!.login, pr.number);
+			}
+		}
+
+		md.appendLine();
+	}
+
+	if (addContributors) {
+		md.appendHeading('Contributors', 2);
+		for (const { author, count } of contributors) {
+			md.appendContributor(author, addContributorCounts ? count : undefined);
+		}
+		md.appendLine();
+	}
+
+	if (suffix.length) md.append(suffix);
+
+	return md.toString();
+}
+
+const config = parseConfig(await Deno.readTextFile('./config.yaml'));
+const github = new GitHub(config.githubToken);
+const pullRequests = await findPullRequests(config.repository, config.milestone, config.previousReleases);
+const changelog = createChangelog(
+	pullRequests,
+	config.prefix,
+	config.suffix,
+	config.groups,
+	config.addContributors,
+	config.addContributorCounts
+);
+
 await Deno.writeTextFile('changelog.md', changelog);
 console.log('Changelog written to changelog.md');

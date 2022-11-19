@@ -42,6 +42,8 @@ export class Config {
 	public milestone: string = null!;
 	public addContributors = false;
 	public addContributorCounts = false;
+	public prefix = '';
+	public suffix = '';
 	public previousReleases: string[] = [];
 	public groups: GroupConfig[] = [];
 
@@ -61,6 +63,9 @@ export class Config {
 			config.addContributors = object.addContributors;
 		if ('addContributorCounts' in object && typeof object.addContributorCounts === 'boolean')
 			config.addContributorCounts = object.addContributorCounts;
+
+		if ('prefix' in object && typeof object.prefix === 'string') config.prefix = object.prefix;
+		if ('suffix' in object && typeof object.suffix === 'string') config.suffix = object.suffix;
 
 		if ('previousReleases' in object && Array.isArray(object.previousReleases))
 			config.previousReleases = object.previousReleases;

@@ -1,4 +1,4 @@
-import { Octokit, throttling } from './deps.ts';
+import { Octokit, PullRequest, throttling } from './deps.ts';
 
 export class GitHub {
 	private octokit: Octokit;
@@ -23,7 +23,7 @@ export class GitHub {
 		});
 	}
 
-	async getMergedPullRequests(repository: string, milestone: string) {
+	async getMergedPullRequests(repository: string, milestone: string): Promise<PullRequest[]> {
 		console.log(`getMergedPullRequests ${repository}:${milestone}`);
 		const prs = [];
 
@@ -48,13 +48,10 @@ export class GitHub {
 		return prs;
 	}
 
-	async getPreviousReleasePullRequests(repository: string, tag: string): Promise<number[]> {
+	async getTagReleaseNotes(repository: string, tag: string): Promise<string> {
 		console.log(`getPreviousReleasePullRequests ${repository}:${tag}`);
 		const [owner, repo] = repository.split('/');
 		const res = await this.octokit.repos.getReleaseByTag({ owner, repo, tag });
-		if (!res.data.body) return [];
-
-		const matches = res.data.body.matchAll(/\s+#(\d{1,5})(?:,|$)/gm);
-		return [...matches].map(match => parseInt(match[1])).filter(n => !isNaN(n));
+		return res.data.body || '';
 	}
 }

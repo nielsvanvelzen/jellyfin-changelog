@@ -156,7 +156,7 @@ function createChangelog(
 		md.appendLine();
 	}
 
-	if (addContributors) {
+	if (addContributors && contributors.length) {
 		md.appendHeading('Contributors', 2);
 		for (const { author, count } of contributors) {
 			md.appendContributor(author, addContributorCounts ? count : undefined);

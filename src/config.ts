@@ -1,4 +1,4 @@
-import { yaml } from './deps.ts';
+import { yaml, path } from './deps.ts';
 
 export enum GroupConfigType {
 	Section,
@@ -79,8 +79,25 @@ export class Config {
 	}
 }
 
-export function parseConfig(content: string): Config {
-	const object = yaml.parse(content);
+async function readYaml<T>(file: string): Promise<T> {
+	const content = await Deno.readTextFile(file);
+	const object = yaml.parse(content, { filename: file }) as T & { '.extend'?: string };
+
+	if ('.extend' in object && typeof object['.extend'] === 'string') {
+		const extendPath = path.resolve(path.dirname(file), object['.extend']);
+		delete object['.extend'];
+
+		return {
+			...(await readYaml(extendPath)),
+			...object,
+		};
+	}
+
+	return object;
+}
+
+export async function readConfig(file: string): Promise<Config> {
+	const object = await readYaml(path.resolve(file));
 	if (!object || typeof object !== 'object') throw new Error('Config is not an object');
 
 	return Config.from(object as Record<string, unknown>);

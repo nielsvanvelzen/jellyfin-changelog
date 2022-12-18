@@ -3,4 +3,5 @@ node_modules
 
 # Project
 changelog.md
-config.yaml
+config/*
+!config/.sample.yaml

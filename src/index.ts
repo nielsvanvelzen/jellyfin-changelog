@@ -1,6 +1,6 @@
 import { MarkdownBuilder } from './markdown.ts';
-import { GroupConfig, GroupConfigType, parseConfig } from './config.ts';
-import { PullRequest } from './deps.ts';
+import { GroupConfig, GroupConfigType, parseConfig, readConfig } from './config.ts';
+import { flags, PullRequest } from './deps.ts';
 import { GitHub } from './github.ts';
 
 async function getPreviousReleasePullRequests(repository: string, previousRelease: string) {
@@ -169,7 +169,14 @@ function createChangelog(
 	return md.toString();
 }
 
-const config = parseConfig(await Deno.readTextFile('./config.yaml'));
+const options = flags.parse(Deno.args, {
+	string: ['config'],
+	alias: {
+		c: 'config',
+	},
+});
+
+const config = await readConfig(options.config!);
 const github = new GitHub(config.githubToken);
 const pullRequests = await findPullRequests(config.repository, config.milestone, config.previousReleases);
 const changelog = createChangelog(

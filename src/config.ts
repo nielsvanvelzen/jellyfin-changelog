@@ -13,9 +13,21 @@ function groupConfigTypeFrom(name: string): GroupConfigType | null {
 	else return null;
 }
 
+export enum GroupConfigDisplay {
+	Default,
+	Newest,
+}
+
+function groupConfigDisplayFrom(name: string): GroupConfigDisplay | null {
+	if (name === 'default') return GroupConfigDisplay.Default;
+	else if (name === 'newest') return GroupConfigDisplay.Newest;
+	else return null;
+}
+
 export class GroupConfig {
 	public type: GroupConfigType = GroupConfigType.Section;
-	public name: string;
+	public display: GroupConfigDisplay = GroupConfigDisplay.Default;
+	public name?: string;
 	public labels: string[] = [];
 	public authors: string[] = [];
 
@@ -24,6 +36,9 @@ export class GroupConfig {
 
 		if ('type' in object && typeof object.type === 'string')
 			config.type = groupConfigTypeFrom(object.type) || config.type;
+
+		if ('display' in object && typeof object.display === 'string')
+			config.display = groupConfigDisplayFrom(object.display) || config.display;
 
 		if ('name' in object && typeof object.name === 'string') config.name = object.name;
 		else throw new Error('Missing name in config group');

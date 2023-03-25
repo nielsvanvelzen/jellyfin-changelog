@@ -1,5 +1,5 @@
 import { MarkdownBuilder } from './markdown.ts';
-import { GroupConfig, GroupConfigType, parseConfig, readConfig } from './config.ts';
+import { GroupConfig, GroupConfigDisplay, GroupConfigType, readConfig } from './config.ts';
 import { flags, PullRequest } from './deps.ts';
 import { GitHub } from './github.ts';
 
@@ -128,8 +128,8 @@ function createChangelog(
 			}
 
 			for (const [dependency, versions] of Object.entries(dependencies)) {
-				if (versions.length === 1) {
-					const pr = versions[0].pullRequest;
+				if (versions.length === 1 || section.config.display === GroupConfigDisplay.Newest) {
+					const pr = versions[versions.length - 1].pullRequest;
 					md.appendPullRequest(pr.title, pr.user!.login, pr.number);
 				} else {
 					md.appendPullRequests(

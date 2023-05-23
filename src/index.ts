@@ -22,11 +22,18 @@ async function getPreviousReleasesPullRequests(repository: string, previousRelea
 	return Array.from(filterIds);
 }
 
-async function findPullRequests(repository: string, milestone: string, previousReleases: string[]) {
+async function findPullRequests(
+	repository: string,
+	milestone: string,
+	previousReleases: string[],
+	ignoreLabels: string[]
+) {
 	const milestonePullRequests = await github.getMergedPullRequests(repository, milestone);
 	const previousReleasesPullRequests = await getPreviousReleasesPullRequests(repository, previousReleases);
 
-	return milestonePullRequests.filter(pr => !previousReleasesPullRequests.includes(pr.number));
+	return milestonePullRequests
+		.filter(pr => !previousReleasesPullRequests.includes(pr.number))
+		.filter(pr => !pr.labels.some(label => ignoreLabels.includes(label.name!)));
 }
 
 function getChangelogSections(
@@ -178,7 +185,12 @@ const options = flags.parse(Deno.args, {
 
 const config = await readConfig(options.config!);
 const github = new GitHub(config.githubToken);
-const pullRequests = await findPullRequests(config.repository, config.milestone, config.previousReleases);
+const pullRequests = await findPullRequests(
+	config.repository,
+	config.milestone,
+	config.previousReleases,
+	config.ignoreLabels
+);
 const changelog = createChangelog(
 	pullRequests,
 	config.title,

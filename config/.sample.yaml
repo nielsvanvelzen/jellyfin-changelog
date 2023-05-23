@@ -10,6 +10,9 @@ previousReleases:
   - v2.3.0-beta.5
   - v2.3.0-beta.6
 
+ignoreLabels:
+  - changelog-ignore
+
 groups:
   - name: Highlights
     labels: [release-highlight]

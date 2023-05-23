@@ -61,6 +61,7 @@ export class Config {
 	public prefix = '';
 	public suffix = '';
 	public previousReleases: string[] = [];
+	public ignoreLabels: string[] = [];
 	public groups: GroupConfig[] = [];
 
 	static from(object: Record<string, unknown>): Config {
@@ -86,6 +87,9 @@ export class Config {
 
 		if ('previousReleases' in object && Array.isArray(object.previousReleases))
 			config.previousReleases = object.previousReleases;
+
+		if ('ignoreLabels' in object && Array.isArray(object.ignoreLabels))
+			config.ignoreLabels = object.ignoreLabels;
 
 		if ('groups' in object && Array.isArray(object.groups))
 			config.groups = object.groups.map(group => GroupConfig.from(group));

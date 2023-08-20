@@ -116,7 +116,7 @@ function createChangelog(
 		// Skip empty groups
 		if (!section.pullRequests.length) continue;
 
-		md.appendHeading(section.config.name, 2);
+		md.appendHeading(section.config.name!, 2);
 
 		if (section.config.type === GroupConfigType.Dependencies) {
 			const dependencies: Record<

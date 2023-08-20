@@ -88,8 +88,7 @@ export class Config {
 		if ('previousReleases' in object && Array.isArray(object.previousReleases))
 			config.previousReleases = object.previousReleases;
 
-		if ('ignoreLabels' in object && Array.isArray(object.ignoreLabels))
-			config.ignoreLabels = object.ignoreLabels;
+		if ('ignoreLabels' in object && Array.isArray(object.ignoreLabels)) config.ignoreLabels = object.ignoreLabels;
 
 		if ('groups' in object && Array.isArray(object.groups))
 			config.groups = object.groups.map(group => GroupConfig.from(group));
@@ -119,5 +118,14 @@ export async function readConfig(file: string): Promise<Config> {
 	const object = await readYaml(path.resolve(file));
 	if (!object || typeof object !== 'object') throw new Error('Config is not an object');
 
-	return Config.from(object as Record<string, unknown>);
+	const config = Config.from(object as Record<string, unknown>);
+
+	if (config.previousReleases.length) {
+		for (const group of config.groups) {
+			if (group.type === GroupConfigType.Dependencies && group.display === GroupConfigDisplay.Newest)
+				throw new Error('GroupConfigDisplay.Newest does not work when filtering by previousReleases.');
+		}
+	}
+
+	return config;
 }

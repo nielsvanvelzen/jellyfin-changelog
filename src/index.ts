@@ -119,7 +119,10 @@ function createChangelog(
 		md.appendHeading(section.config.name, 2);
 
 		if (section.config.type === GroupConfigType.Dependencies) {
-			const dependencies: Record<string, { version: string; pullRequest: PullRequest }[]> = {};
+			const dependencies: Record<
+				string,
+				{ dependency: string; author: string; versions: { version: string; pullRequest: PullRequest }[] }
+			> = {};
 			const leftOver: PullRequest[] = [];
 
 			for (const pr of section.pullRequests) {
@@ -127,24 +130,28 @@ function createChangelog(
 
 				if (match) {
 					const [, dependency, version] = match;
-					if (!(dependency in dependencies)) dependencies[dependency] = [];
-					dependencies[dependency].push({ version, pullRequest: pr });
+					const key = pr.user!.login + dependency;
+					if (!(key in dependencies))
+						dependencies[key] = { dependency, author: pr.user!.login, versions: [] };
+					dependencies[key].versions.push({ version, pullRequest: pr });
 				} else {
 					leftOver.push(pr);
 				}
 			}
 
-			for (const [dependency, versions] of Object.entries(dependencies)) {
+			for (const { dependency, author, versions } of Object.values(dependencies)) {
 				if (versions.length === 1 || section.config.display === GroupConfigDisplay.Newest) {
 					const pr = versions[versions.length - 1].pullRequest;
 					md.appendPullRequest(pr.title, pr.user!.login, pr.number);
 				} else {
+					// Sort from newest to oldest
+					versions.sort((a, b) => new Date(b.pullRequest.closed_at!).getTime() - new Date(a.pullRequest.closed_at!).getTime());
+
 					md.appendPullRequests(
 						`Update ${dependency}`,
-						'to ',
+						author,
 						versions.map(({ version, pullRequest }) => ({
 							title: version,
-							author: pullRequest.user!.login,
 							id: pullRequest.number,
 						}))
 					);

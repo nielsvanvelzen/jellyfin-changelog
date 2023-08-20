@@ -45,13 +45,20 @@ export class MarkdownBuilder {
 		return this;
 	}
 
-	public appendPullRequests(title: string, prefix: string, pullRequests: { title: string; author: string; id: number }[]): this {
-		this.appendLine('- ', escapeMarkdown(title));
-		for (const pr of pullRequests) {
-			this.append('  ');
-			const title = `${prefix}${pr.title}`;
-			this.appendPullRequest(title, pr.author, pr.id);
-		}
+	public appendPullRequests(title: string, author:string, versions: { title: string; id: number }[]): this {
+		this.append('- ', escapeMarkdown(title));
+		this.append(' by ');
+		this.appendGitHubAuthorReference(author);
+
+		versions.forEach((pr, index) => {
+			if (index !== 0) this.append(', ');
+			else this.append(' ');
+
+			this.append(escapeMarkdown(pr.title));
+			this.append(' ');
+			this.appendGitHubPullRequestReference(pr.id);
+		});
+		this.appendLine();
 
 		return this;
 	}

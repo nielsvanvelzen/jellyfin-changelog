@@ -23,7 +23,12 @@ export class MarkdownBuilder {
 	}
 
 	public appendGitHubAuthorReference(author: string): this {
-		this.append('@', escapeMarkdown(author));
+		// Don't link bots as their username is not a valid GitHub user
+		if (author.endsWith('[bot]')) {
+			this.append(escapeMarkdown(author));
+		} else {
+			this.append('[@', escapeMarkdown(author), '](https://github.com/', escapeMarkdown(author), ')');
+		}
 
 		return this;
 	}
@@ -45,7 +50,7 @@ export class MarkdownBuilder {
 		return this;
 	}
 
-	public appendPullRequests(title: string, author:string, versions: { title: string; id: number }[]): this {
+	public appendPullRequests(title: string, author: string, versions: { title: string; id: number }[]): this {
 		this.append('- ', escapeMarkdown(title));
 		this.append(' by ');
 		this.appendGitHubAuthorReference(author);

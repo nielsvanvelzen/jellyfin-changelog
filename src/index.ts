@@ -83,6 +83,7 @@ function getChangelogContributors(pullRequests: PullRequest[]): { author: string
 
 	for (const pr of pullRequests) {
 		const user = pr.user!.login;
+		if (user.endsWith('[bot]')) continue;
 		if (!contributorMap.has(user)) contributorMap.set(user, 1);
 		else contributorMap.set(user, contributorMap.get(user)! + 1);
 	}

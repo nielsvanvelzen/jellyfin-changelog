@@ -15,9 +15,9 @@ export class GitHub {
 					);
 					return true;
 				},
-				onAbuseLimit: (retryAfter: number, options: { method: string; url: string }) =>
+				onSecondaryRateLimit: (retryAfter: number, options: { method: string; url: string }) =>
 					console.log(
-						`Abuse detected for request ${options.method} ${options.url}. Retry after ${retryAfter} seconds.`
+						`Secondary quota detected for request ${options.method} ${options.url}. Retry after ${retryAfter} seconds.`
 					),
 			},
 		});
@@ -33,13 +33,17 @@ export class GitHub {
 			const res = await this.octokit.search.issuesAndPullRequests({
 				per_page: 100,
 				page,
-				q: `repo:${repository} is:pr milestone:${milestone} sort:created-asc`,
+				q: `repo:${repository} AND is:pr AND milestone:${milestone}`,
+				sort: 'created',
+				order: 'asc',
+				advanced_search: true,
 			});
 			if (res.data.items.length == 0) break;
 
 			for (const item of res.data.items) {
-				if (item.pull_request && item.pull_request.merged_at !== null) prs.push(item);
-				else console.warn(`skipping pull request ${item.id}: not merged`);
+				if (!item.pull_request) continue;
+				if (item.pull_request.merged_at !== null) prs.push(item);
+				else console.warn(`skipping pull request ${item.number}: not merged`);
 			}
 
 			page++;

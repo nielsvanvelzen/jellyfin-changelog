@@ -1,7 +1,9 @@
 import { MarkdownBuilder } from './markdown.ts';
 import { GroupConfig, GroupConfigDisplay, GroupConfigType, readConfig } from './config.ts';
-import { flags, PullRequest } from './deps.ts';
+import type { PullRequest } from './github.ts';
 import { GitHub } from './github.ts';
+import { writeFile } from 'node:fs/promises';
+import { parseArgs } from 'node:util';
 
 async function getPreviousReleasePullRequests(repository: string, previousRelease: string) {
 	const releaseNotes = await github.getTagReleaseNotes(repository, previousRelease);
@@ -184,10 +186,9 @@ function createChangelog(
 	return md.toString();
 }
 
-const options = flags.parse(Deno.args, {
-	string: ['config'],
-	alias: {
-		c: 'config',
+const { values: options } = parseArgs({
+	options: {
+		config: { type: 'string', short: 'c' },
 	},
 });
 
@@ -209,5 +210,5 @@ const changelog = createChangelog(
 	config.addContributorCounts
 );
 
-await Deno.writeTextFile('changelog.md', changelog);
+await writeFile('changelog.md', changelog, 'utf8');
 console.log('Changelog written to changelog.md');

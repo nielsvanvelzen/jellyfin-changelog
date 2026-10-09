@@ -1,6 +1,6 @@
 # jellyfin-changelog
 
-A quick and dirty Deno script to generate GitHub changelogs.
+A quick and dirty Node.js script to generate GitHub changelogs.
 
 ## Configuration
 
@@ -10,5 +10,5 @@ Use this to keep general config like your GitHub token in a separate file.
 
 ## Running
 
-Execute the `run` task and provide the path to the config with the `-c` option.
-> `deno task run -c .\config\coolproject.yaml`
+Execute the `run` script and provide the path to the config with the `-c` option.
+> `npm run run -- -c .\config\coolproject.yaml`

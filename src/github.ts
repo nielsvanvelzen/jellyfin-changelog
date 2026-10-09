@@ -1,4 +1,8 @@
-import { Octokit, PullRequest, throttling } from './deps.ts';
+import { Octokit } from '@octokit/rest';
+import type { RestEndpointMethodTypes } from '@octokit/rest';
+import { throttling } from '@octokit/plugin-throttling';
+
+export type PullRequest = RestEndpointMethodTypes['search']['issuesAndPullRequests']['response']['data']['items'][number];
 
 export class GitHub {
 	private octokit: Octokit;
@@ -36,7 +40,7 @@ export class GitHub {
 				q: `repo:${repository} AND is:pr AND milestone:${milestone}`,
 				sort: 'created',
 				order: 'asc',
-				advanced_search: true,
+				advanced_search: 'true',
 			});
 			if (res.data.items.length == 0) break;
 

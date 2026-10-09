@@ -1,10 +1,14 @@
-import { yaml, path } from './deps.ts';
+import * as yaml from 'yaml';
+import * as path from 'node:path';
+import { readFile } from 'node:fs/promises';
 
-export enum GroupConfigType {
-	Section,
-	Dependencies,
-	Leftover,
-}
+export const GroupConfigType = {
+	Section: 0,
+	Dependencies: 1,
+	Leftover: 2,
+} as const;
+
+export type GroupConfigType = (typeof GroupConfigType)[keyof typeof GroupConfigType];
 
 function groupConfigTypeFrom(name: string): GroupConfigType | null {
 	if (name === 'section') return GroupConfigType.Section;
@@ -13,10 +17,12 @@ function groupConfigTypeFrom(name: string): GroupConfigType | null {
 	else return null;
 }
 
-export enum GroupConfigDisplay {
-	Default,
-	Newest,
-}
+export const GroupConfigDisplay = {
+	Default: 0,
+	Newest: 1,
+} as const;
+
+export type GroupConfigDisplay = (typeof GroupConfigDisplay)[keyof typeof GroupConfigDisplay];
 
 function groupConfigDisplayFrom(name: string): GroupConfigDisplay | null {
 	if (name === 'default') return GroupConfigDisplay.Default;
@@ -98,8 +104,8 @@ export class Config {
 }
 
 async function readYaml<T>(file: string): Promise<T> {
-	const content = await Deno.readTextFile(file);
-	const object = yaml.parse(content, { filename: file }) as T & { '.extend'?: string };
+	const content = await readFile(file, 'utf8');
+	const object = yaml.parse(content) as T & { '.extend'?: string };
 
 	if ('.extend' in object && typeof object['.extend'] === 'string') {
 		const extendPath = path.resolve(path.dirname(file), object['.extend']);
